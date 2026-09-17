@@ -1,4 +1,4 @@
-import { BaseTickerProvider } from '.';
+import { BaseTickerProvider, MarketType } from '.';
 import got from 'got';
 import { ApiClientError } from '../errors';
 
@@ -26,14 +26,13 @@ export class BinanceTickerProvider extends BaseTickerProvider {
     super(apiKey, secretKey, 'Binance');
   }
 
-  async getTickers(): Promise<BinanceTickerData[]> {
-    // Alternative endpoints including regional mirrors and alternative APIs
-    const endpoints = [
-      'https://api.binance.com/api/v3/ticker/24hr',
-      'https://api1.binance.com/api/v3/ticker/24hr',
-      'https://api2.binance.com/api/v3/ticker/24hr',
-      'https://api3.binance.com/api/v3/ticker/24hr'
-    ]; // Randomize endpoint order to distribute load
+  async getTickers(market: MarketType = 'spot'): Promise<BinanceTickerData[]> {
+    // USDⓈ-M futures are served from the fapi cluster, spot from the api cluster
+    const hosts = market === 'futures'
+      ? ['https://fapi.binance.com/fapi/v1']
+      : ['https://api.binance.com/api/v3', 'https://api1.binance.com/api/v3', 'https://api2.binance.com/api/v3', 'https://api3.binance.com/api/v3'];
+    // Randomize endpoint order to distribute load
+    const endpoints = hosts.map(host => `${host}/ticker/24hr`);
     const shuffledEndpoints = [...endpoints].sort(() => Math.random() - 0.5);
 
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -129,7 +128,11 @@ export class BinanceTickerProvider extends BaseTickerProvider {
       }
     }
 
-    // Last resort: try alternative data sources
+    // Last resort: try alternative data sources (spot data only, futures have no equivalent)
+    if (market !== 'spot') {
+      throw new Error(`Could not retrieve ${market} tickers from Binance: All endpoints exhausted`);
+    }
+
     console.warn('Binance: All official endpoints failed, trying alternative sources...');
     return await this.getTickersFromAlternativeSource();
   }
@@ -210,7 +213,8 @@ export class BinanceTickerProvider extends BaseTickerProvider {
     return result;
   }
 
-  async getTicker(symbol: string, currency: string, allTickers: BinanceTickerData[]): Promise<BinanceTicker> {
+  async getTicker(symbol: string, currency: string, market: MarketType, allTickers: BinanceTickerData[]): Promise<BinanceTicker> {
+    // spot and USDⓈ-M futures share the BTCUSDT symbol shape
     const tickerData = allTickers.find(ticker => ticker.symbol === `${symbol}${currency.toUpperCase()}`);
 
     if (!tickerData) {

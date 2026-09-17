@@ -1,4 +1,4 @@
-import { BaseTickerProvider } from '.';
+import { BaseTickerProvider, MarketType } from '.';
 import got from 'got';
 import { ApiClientError } from '../errors';
 
@@ -24,9 +24,11 @@ export class OKXTickerProvider extends BaseTickerProvider {
     super(apiKey, secretKey, 'OKX');
   }
 
-  async getTickers(): Promise<OKXTickerData[]> {
+  async getTickers(market: MarketType = 'spot'): Promise<OKXTickerData[]> {
     try {
-      const url = 'https://www.okx.com/api/v5/market/tickers?instType=SPOT';
+      // perpetual swaps are queried with instType=SWAP, spot pairs with SPOT
+      const instType = market === 'swap' ? 'SWAP' : 'SPOT';
+      const url = `https://www.okx.com/api/v5/market/tickers?instType=${instType}`;
       const options: any = {
         headers: {}
       };
@@ -52,7 +54,8 @@ export class OKXTickerProvider extends BaseTickerProvider {
       if (this.apiKey && !(error instanceof ApiClientError)) {
         console.warn('OKX: Retrying with public API...');
         try {
-          const response = await got('https://www.okx.com/api/v5/market/tickers?instType=SPOT');
+          const instType = market === 'swap' ? 'SWAP' : 'SPOT';
+          const response = await got(`https://www.okx.com/api/v5/market/tickers?instType=${instType}`);
           const data: { code: string; data: OKXTickerData[]; msg?: string } = JSON.parse(response.body);
 
           if (data.code !== '0') {
@@ -66,12 +69,14 @@ export class OKXTickerProvider extends BaseTickerProvider {
         }
       }
 
-      throw new Error(`Could not retrieve tickers from OKX: ${error.message}`);
+      throw new Error(`Could not retrieve ${market} tickers from OKX: ${error.message}`);
     }
   }
 
-  async getTicker(symbol: string, currency: string, allTickers: OKXTickerData[]): Promise<OKXTicker> {
-    const tickerData = allTickers.find(ticker => ticker.instId === `${symbol}-${currency.toUpperCase()}`);
+  async getTicker(symbol: string, currency: string, market: MarketType, allTickers: OKXTickerData[]): Promise<OKXTicker> {
+    // perpetual swaps carry a -SWAP suffix, spot pairs are plain SYMBOL-CURRENCY
+    const instId = market === 'swap' ? `${symbol}-${currency.toUpperCase()}-SWAP` : `${symbol}-${currency.toUpperCase()}`;
+    const tickerData = allTickers.find(ticker => ticker.instId === instId);
 
     if (!tickerData) {
       throw new Error(`Could not retrieve price for ${symbol} from OKX`);

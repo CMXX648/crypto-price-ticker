@@ -8,7 +8,7 @@
     "price",
     "crypto"
   ],
-  "version": "1.2.1",
+  "version": "1.3.0",
   "publisher": "Mavis2103",
   "repository": {
     "type": "git",
@@ -32,6 +32,23 @@
     }
   },
   "contributes": {
+    "commands": [
+      {
+        "command": "crypto-price-ticker.toggle",
+        "title": "Toggle Crypto Price Ticker",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "crypto-price-ticker.setApiKeys",
+        "title": "Set API Keys",
+        "icon": "$(key)"
+      },
+      {
+        "command": "crypto-price-ticker.clearApiKeys",
+        "title": "Clear API Keys",
+        "icon": "$(trash)"
+      }
+    ],
     "configuration": {
       "properties": {
         "crypto-price-ticker.interval": {
@@ -49,13 +66,14 @@
           "default": "lightgreen",
           "description": "The color that indicates the symbols is trading higher."
         },
-        "lowerColor": {
+        "crypto-price-ticker.lowerColor": {
           "type": "string",
           "default": "coral",
           "description": "The color that indicates the symbols is trading lower."
         },
         "crypto-price-ticker.tickers": {
           "type": "array",
+          "scope": "application",
           "items": {
             "type": "object",
             "properties": {
@@ -74,7 +92,7 @@
               },
               "template": {
                 "type": "string",
-                "default": "{symbol} {price}",
+                "default": "{symbol}{market} {price}",
                 "description": "The template to use to display the ticker."
               },
               "provider": {
@@ -85,6 +103,16 @@
                   "OKX"
                 ],
                 "description": "The provider to use to get the price."
+              },
+              "market": {
+                "type": "string",
+                "default": "spot",
+                "enum": [
+                  "spot",
+                  "futures",
+                  "swap"
+                ],
+                "description": "The market to fetch. Binance supports spot and futures, OKX supports spot and swap (perpetual). Unsupported combinations fall back to spot."
               }
             },
             "required": [
@@ -107,6 +135,7 @@
         },
         "crypto-price-ticker.providers": {
           "type": "object",
+          "scope": "application",
           "properties": {
             "binance": {
               "type": "object",
@@ -159,7 +188,7 @@
               "secretKey": ""
             }
           },
-          "description": "API keys configuration for providers."
+          "description": "Deprecated: use the 'Set API Keys' command instead. Keys stored here are visible in settings files and may be committed to version control."
         }
       }
     }

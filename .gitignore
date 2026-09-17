@@ -2,6 +2,7 @@
 out
 node_modules
 *.vsix
+CLAUDE.md
 .clinerules/byterover-rules.md
 .kilocode/rules/byterover-rules.md
 .roo/rules/byterover-rules.md

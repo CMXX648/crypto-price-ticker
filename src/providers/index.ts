@@ -3,9 +3,13 @@ import { AuthError, ApiClientError, NetworkError, TickerError } from '../errors'
 import got from 'got';
 
 export interface TickerProvider {
-  getTicker(symbol: string, currency: string, allTickers?: any[]): Promise<any>;
-  getTickers(): Promise<any[]>;
+  getTicker(symbol: string, currency: string, market: MarketType, allTickers?: any[]): Promise<any>;
+  getTickers(market: MarketType): Promise<any[]>;
 }
+
+// the market type a ticker is fetched from
+// Binance supports spot and futures, OKX supports spot and swap (perpetual)
+export type MarketType = 'spot' | 'futures' | 'swap';
 
 export abstract class BaseTickerProvider implements TickerProvider {
   protected apiKey?: string;
@@ -30,8 +34,8 @@ export abstract class BaseTickerProvider implements TickerProvider {
     }
   }
 
-  abstract getTicker(symbol: string, currency: string, allTickers?: any[]): Promise<any>;
-  abstract getTickers(): Promise<any>;
+  abstract getTicker(symbol: string, currency: string, market: MarketType, allTickers?: any[]): Promise<any>;
+  abstract getTickers(market: MarketType): Promise<any>;
 
   protected async makeApiRequest(url: string, options: any = {}, requiresAuth: boolean = false): Promise<any> {
     if (requiresAuth) {
