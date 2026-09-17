@@ -26,6 +26,9 @@ let interval: NodeJS.Timeout | undefined;
 // guards against overlapping rebuilds while secrets are being read
 let rebuilding = false;
 
+// a rebuild requested while another is in flight — re-run once it finishes
+let pendingRebuild = false;
+
 // this method is called when your extension is activated
 export async function activate(context: vscode.ExtensionContext) {
   // toggle the visibility of the ticker data from the status bar icon
@@ -75,6 +78,7 @@ function registerKeyCommands(context: vscode.ExtensionContext) {
       const id = provider.toLowerCase();
       await context.secrets.store(`${SECRET_PREFIX}.${id}.apiKey`, apiKey);
       await context.secrets.store(`${SECRET_PREFIX}.${id}.secretKey`, secretKey);
+      await context.secrets.delete(`${SECRET_PREFIX}.${id}.cleared`);
       vscode.window.showInformationMessage(`crypto-price-ticker: ${provider} API keys saved to Secret Storage.`);
 
       // rebuild so the new keys are picked up straight away
@@ -92,6 +96,8 @@ function registerKeyCommands(context: vscode.ExtensionContext) {
       const id = provider.toLowerCase();
       await context.secrets.delete(`${SECRET_PREFIX}.${id}.apiKey`);
       await context.secrets.delete(`${SECRET_PREFIX}.${id}.secretKey`);
+      // remember the clear so settings.json keys cannot resurrect the credentials
+      await context.secrets.store(`${SECRET_PREFIX}.${id}.cleared`, '1');
       vscode.window.showInformationMessage(`crypto-price-ticker: ${provider} API keys cleared.`);
 
       await constructor(context);
@@ -103,7 +109,8 @@ function registerKeyCommands(context: vscode.ExtensionContext) {
 async function readSecrets(context: vscode.ExtensionContext): Promise<ProviderKeys> {
   const read = async (provider: string) => ({
     apiKey: (await context.secrets.get(`${SECRET_PREFIX}.${provider}.apiKey`)) ?? undefined,
-    secretKey: (await context.secrets.get(`${SECRET_PREFIX}.${provider}.secretKey`)) ?? undefined
+    secretKey: (await context.secrets.get(`${SECRET_PREFIX}.${provider}.secretKey`)) ?? undefined,
+    cleared: (await context.secrets.get(`${SECRET_PREFIX}.${provider}.cleared`)) === '1'
   });
 
   return {
@@ -114,8 +121,9 @@ async function readSecrets(context: vscode.ExtensionContext): Promise<ProviderKe
 
 // construct the extension
 async function constructor(context: vscode.ExtensionContext) {
-  // skip if a rebuild is already running, the next change will catch up
+  // a rebuild landing mid-flight must not be dropped — re-run once this one finishes
   if (rebuilding) {
+    pendingRebuild = true;
     return;
   }
   rebuilding = true;
@@ -124,11 +132,13 @@ async function constructor(context: vscode.ExtensionContext) {
     // clear the interval if we already have one
     if (interval !== undefined) {
       clearInterval(interval);
+      interval = undefined;
     }
 
     // dispose of the tickers if we already have an array
     if (tickers !== undefined) {
       tickers.dispose();
+      tickers = undefined;
     }
 
     // get the ticker definition from the configuration
@@ -162,8 +172,13 @@ async function constructor(context: vscode.ExtensionContext) {
   } catch (error: any) {
     console.error('crypto-price-ticker: failed to construct the tickers:', error.message);
     vscode.window.showErrorMessage(`crypto-price-ticker: ${error.message}`);
+    tickers = undefined;
   } finally {
     rebuilding = false;
+    if (pendingRebuild) {
+      pendingRebuild = false;
+      await constructor(context);
+    }
   }
 }
 

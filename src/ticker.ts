@@ -20,6 +20,8 @@ export interface Ticker {
 export interface ProviderKeySet {
   apiKey?: string;
   secretKey?: string;
+  // true when the user explicitly cleared Secret Storage for this provider
+  cleared?: boolean;
 }
 
 // credentials for every supported provider
@@ -80,9 +82,10 @@ export class Tickers {
       this.tickerProviders.push(tickerProvider);
     });
 
-    // create status bar items for each symbol
+    // create status bar items — key by provider/market/symbol/currency so
+    // BTC spot and BTC futures do not share (and leak) a single item
     this.tickers.forEach((ticker, priority) => {
-      this.items[ticker.symbol] = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, priority);
+      this.items[this.itemKey(ticker)] = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, priority);
     });
 
     // the toggle icon sits to the left of the tickers and folds their data away
@@ -141,10 +144,30 @@ export class Tickers {
     }
   }
 
+  // status bar items must be unique per (provider, market, symbol, currency)
+  private itemKey(ticker: Ticker): string {
+    return `${ticker.provider}:${ticker.market}:${ticker.symbol}:${ticker.currency}`;
+  }
+
   // prefer the keys from Secret Storage, fall back to the ones in settings.json
   private resolveKeys(provider: string, secretKeys?: ProviderKeySet, configKeys?: ProviderKeySet): ProviderKeySet {
-    if (secretKeys?.apiKey && secretKeys?.secretKey) {
-      return secretKeys;
+    const hasSecretApiKey = !!secretKeys?.apiKey;
+    const hasSecretSecretKey = !!secretKeys?.secretKey;
+
+    if (hasSecretApiKey && hasSecretSecretKey) {
+      return secretKeys!;
+    }
+
+    // a half-filled Secret Storage entry is not "no secrets" — do not fall back
+    // wholesale to settings.json, which would silently resurrect the other key
+    if (hasSecretApiKey || hasSecretSecretKey) {
+      console.warn(`crypto-price-ticker: ${provider} Secret Storage is incomplete (both apiKey and secretKey are required). Not falling back to settings.json.`);
+      return { apiKey: secretKeys?.apiKey, secretKey: secretKeys?.secretKey };
+    }
+
+    // Clear API Keys must stick even when settings.json still has a deprecated copy
+    if (secretKeys?.cleared) {
+      return {};
     }
 
     if (configKeys?.apiKey || configKeys?.secretKey) {
@@ -201,7 +224,7 @@ export class Tickers {
         }
 
         const tickerData = await tickerProvider.getTicker(ticker.symbol, ticker.currency, ticker.market, allTokensForMarket);
-        const item = this.items[ticker.symbol];
+        const item = this.items[this.itemKey(ticker)];
 
         // the badge distinguishes the market the price comes from
         const marketBadge = ticker.market === 'futures' ? 'Ⓜ' : ticker.market === 'swap' ? 'Ⓟ' : 'Ⓢ';
@@ -222,7 +245,7 @@ export class Tickers {
         this.showItem(item);
       } catch (error: any) {
         console.error(`Error refreshing ${ticker.symbol} from ${ticker.provider}:`, error.message);
-        const item = this.items[ticker.symbol];
+        const item = this.items[this.itemKey(ticker)];
 
         // Display error message on status bar
         if (error.name === 'AuthError') {

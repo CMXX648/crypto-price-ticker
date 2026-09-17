@@ -167,12 +167,3 @@ API keys are **not** set here — use the **Set API Keys** command described abo
 ---
 
 **Crypto Price Ticker for VS Code** — The best way to keep track of cryptocurrency prices while coding!
-
---- 
->* * Fork Explanation**
->This project Fork from [Mavis2103/crypto price picker]（ https://github.com/Mavis2103/crypto-price-ticker )，
->The original author is [Mavis2103]（ https://github.com/Mavis2103 ）.
->The original project has stopped maintenance, and this Fork will continue to update and fix issues.
->This Fork has added features such as SecretStorage key storage, configuring scope restrictions, and Futures market support.
-
-**Based on [Mavis2103/crypto-price-ticker]( https://github.com/Mavis2103/crypto-price-ticker ) by [Mavis2103]( https://github.com/Mavis2103 ). **
