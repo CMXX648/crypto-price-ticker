@@ -3,6 +3,7 @@ out
 node_modules
 *.vsix
 CLAUDE.md
+.claude-handoff.md
 .clinerules/byterover-rules.md
 .kilocode/rules/byterover-rules.md
 .roo/rules/byterover-rules.md

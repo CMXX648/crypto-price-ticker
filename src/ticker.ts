@@ -2,9 +2,10 @@
 // See LICENSE file in the project root for full license information.
 
 import * as vscode from 'vscode';
-import { TickerProvider, MarketType } from './providers';
+import { TickerProvider, MarketType, ProviderKeys } from './providers';
 import { BinanceTickerProvider } from './providers/binance';
 import { OKXTickerProvider } from './providers/okx';
+import { createTickerProvider, resolveProviderKeys } from './providers/factory';
 
 // represents a ticker object
 export interface Ticker {
@@ -14,20 +15,6 @@ export interface Ticker {
   template: string;
   provider: string;
   market: MarketType;
-}
-
-// a set of credentials for a single provider
-export interface ProviderKeySet {
-  apiKey?: string;
-  secretKey?: string;
-  // true when the user explicitly cleared Secret Storage for this provider
-  cleared?: boolean;
-}
-
-// credentials for every supported provider
-export interface ProviderKeys {
-  binance?: ProviderKeySet;
-  okx?: ProviderKeySet;
 }
 
 // the key used to persist the folded state of the ticker
@@ -50,6 +37,9 @@ export class Tickers {
   private higherColor: string;
   private lowerColor: string;
 
+  // the handle of the background bulk refresh timer
+  private tokensInterval?: NodeJS.Timeout;
+
   // construct a new ticker based on a ticker definition
   constructor(tickers: Ticker[], private state?: vscode.Memento, private keys?: ProviderKeys) {
     this.tickers = tickers;
@@ -66,36 +56,33 @@ export class Tickers {
 
     // Create only one instance per provider type
     usedProviders.forEach(providerName => {
-      let tickerProvider: TickerProvider;
-      switch (providerName) {
-        case 'Binance':
-          const binanceKeys = this.resolveKeys('Binance', this.keys?.binance, configuration.providers?.binance);
-          tickerProvider = new BinanceTickerProvider(binanceKeys.apiKey, binanceKeys.secretKey);
-          break;
-        case 'OKX':
-          const okxKeys = this.resolveKeys('OKX', this.keys?.okx, configuration.providers?.okx);
-          tickerProvider = new OKXTickerProvider(okxKeys.apiKey, okxKeys.secretKey);
-          break;
-        default:
-          throw new Error(`Unknown ticker provider: ${providerName}`);
-      }
-      this.tickerProviders.push(tickerProvider);
+      const id = providerName.toLowerCase();
+      const secretKeys = id === 'okx' ? this.keys?.okx : this.keys?.binance;
+
+      this.tickerProviders.push(createTickerProvider(providerName, resolveProviderKeys(providerName, secretKeys, configuration.providers?.[id])));
     });
 
     // create status bar items — key by provider/market/symbol/currency so
     // BTC spot and BTC futures do not share (and leak) a single item
     this.tickers.forEach((ticker, priority) => {
-      this.items[this.itemKey(ticker)] = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, priority);
+      const key = this.itemKey(ticker);
+      const item = vscode.window.createStatusBarItem(`crypto-price-ticker.price.${key}`, vscode.StatusBarAlignment.Left, priority);
+      item.name = `Crypto ${ticker.symbol}`;
+      this.items[key] = item;
     });
 
-    // the toggle icon sits to the left of the tickers and folds their data away
-    this.toggleItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, this.tickers.length);
+    // the toggle icon sits to the left of the tickers and folds their data away.
+    // the id keeps it visible across reloads if it was toggled from the status bar menu
+    this.toggleItem = vscode.window.createStatusBarItem('crypto-price-ticker.toggle', vscode.StatusBarAlignment.Left, this.tickers.length);
+    this.toggleItem.name = 'Crypto Price Ticker';
     this.toggleItem.command = 'crypto-price-ticker.toggle';
     this.updateToggleItem();
 
     this.getAllTokens();
-    // Increase interval to reduce rate limiting (90 seconds instead of 60)
-    setInterval(() => this.getAllTokens(), 90000);
+    // Increase interval to reduce rate limiting (90 seconds instead of 60).
+    // the handle is kept so dispose() can stop it — extension.ts rebuilds the tickers
+    // on every configuration change, and a leaked timer would keep fetching for ever
+    this.tokensInterval = setInterval(() => this.getAllTokens(), 90000);
 
     // handle the first refresh call
     this.refresh();
@@ -103,6 +90,12 @@ export class Tickers {
 
   // dispose of the ticker
   dispose() {
+    // stop the background token refresh
+    if (this.tokensInterval !== undefined) {
+      clearInterval(this.tokensInterval);
+      this.tokensInterval = undefined;
+    }
+
     // hide and dispose the status bar item
     Object.values(this.items).forEach(item => {
       item.hide();
@@ -149,33 +142,8 @@ export class Tickers {
     return `${ticker.provider}:${ticker.market}:${ticker.symbol}:${ticker.currency}`;
   }
 
-  // prefer the keys from Secret Storage, fall back to the ones in settings.json
-  private resolveKeys(provider: string, secretKeys?: ProviderKeySet, configKeys?: ProviderKeySet): ProviderKeySet {
-    const hasSecretApiKey = !!secretKeys?.apiKey;
-    const hasSecretSecretKey = !!secretKeys?.secretKey;
-
-    if (hasSecretApiKey && hasSecretSecretKey) {
-      return secretKeys!;
-    }
-
-    // a half-filled Secret Storage entry is not "no secrets" — do not fall back
-    // wholesale to settings.json, which would silently resurrect the other key
-    if (hasSecretApiKey || hasSecretSecretKey) {
-      console.warn(`crypto-price-ticker: ${provider} Secret Storage is incomplete (both apiKey and secretKey are required). Not falling back to settings.json.`);
-      return { apiKey: secretKeys?.apiKey, secretKey: secretKeys?.secretKey };
-    }
-
-    // Clear API Keys must stick even when settings.json still has a deprecated copy
-    if (secretKeys?.cleared) {
-      return {};
-    }
-
-    if (configKeys?.apiKey || configKeys?.secretKey) {
-      console.warn(`crypto-price-ticker: ${provider} keys found in settings.json — move them to Secret Storage with the "Set API Keys" command for better security.`);
-    }
-
-    return configKeys ?? {};
-  }
+  // the key resolution itself now lives in providers/factory so the chart and the
+  // status bar tickers always resolve credentials the same way
 
   // refresh the ticker
   refresh() {

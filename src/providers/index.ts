@@ -5,11 +5,39 @@ import got from 'got';
 export interface TickerProvider {
   getTicker(symbol: string, currency: string, market: MarketType, allTickers?: any[]): Promise<any>;
   getTickers(market: MarketType): Promise<any[]>;
+  getKlines(symbol: string, currency: string, market: MarketType, interval: KlineInterval, limit: number): Promise<Candle[]>;
 }
 
 // the market type a ticker is fetched from
 // Binance supports spot and futures, OKX supports spot and swap (perpetual)
 export type MarketType = 'spot' | 'futures' | 'swap';
+
+// the candle intervals the K-line chart can request
+export type KlineInterval = '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
+
+// a single OHLC candle
+export interface Candle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+// credentials for a single provider
+export interface ProviderKeySet {
+  apiKey?: string;
+  secretKey?: string;
+  // true when the user explicitly cleared Secret Storage for this provider
+  cleared?: boolean;
+}
+
+// credentials for every supported provider
+export interface ProviderKeys {
+  binance?: ProviderKeySet;
+  okx?: ProviderKeySet;
+}
 
 export abstract class BaseTickerProvider implements TickerProvider {
   protected apiKey?: string;
@@ -36,6 +64,7 @@ export abstract class BaseTickerProvider implements TickerProvider {
 
   abstract getTicker(symbol: string, currency: string, market: MarketType, allTickers?: any[]): Promise<any>;
   abstract getTickers(market: MarketType): Promise<any>;
+  abstract getKlines(symbol: string, currency: string, market: MarketType, interval: KlineInterval, limit: number): Promise<Candle[]>;
 
   protected async makeApiRequest(url: string, options: any = {}, requiresAuth: boolean = false): Promise<any> {
     if (requiresAuth) {

@@ -1,4 +1,4 @@
-import { BaseTickerProvider, MarketType } from '.';
+import { BaseTickerProvider, MarketType, KlineInterval, Candle } from '.';
 import got from 'got';
 import { ApiClientError } from '../errors';
 
@@ -229,6 +229,50 @@ export class BinanceTickerProvider extends BaseTickerProvider {
       change: parseFloat(tickerData.priceChange),
       percent: parseFloat(parseFloat(tickerData.priceChangePercent).toFixed(2))
     };
+  }
+
+  // a small browser-like header set for the market data endpoints
+  private klineHeaders(): { [key: string]: string } {
+    const headers: { [key: string]: string } = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
+      'Cache-Control': 'no-cache'
+    };
+
+    if (this.apiKey) {
+      headers['X-MBX-APIKEY'] = this.apiKey;
+    }
+
+    return headers;
+  }
+
+  async getKlines(symbol: string, currency: string, market: MarketType, interval: KlineInterval, limit: number): Promise<Candle[]> {
+    // USDⓈ-M futures are served from the fapi cluster, spot from the api cluster
+    const host = market === 'futures' ? 'https://fapi.binance.com/fapi/v1' : 'https://api.binance.com/api/v3';
+    const pair = `${symbol}${currency.toUpperCase()}`;
+    const url = `${host}/klines?symbol=${encodeURIComponent(pair)}&interval=${interval}&limit=${limit}`;
+
+    const data = await this.makeApiRequest(url, {
+      headers: this.klineHeaders(),
+      timeout: { request: 15000 },
+      retry: { limit: 0 },
+      http2: false
+    });
+
+    if (!Array.isArray(data)) {
+      throw new Error(`Could not retrieve ${interval} candles for ${pair} from Binance`);
+    }
+
+    // [openTime, open, high, low, close, volume, closeTime, ...] — already in ascending order
+    return data.map((kline: any[]) => ({
+      time: Number(kline[0]),
+      open: parseFloat(kline[1]),
+      high: parseFloat(kline[2]),
+      low: parseFloat(kline[3]),
+      close: parseFloat(kline[4]),
+      volume: parseFloat(kline[5])
+    }));
   }
 
   protected isApiError(data: any): boolean {

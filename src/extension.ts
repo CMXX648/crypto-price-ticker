@@ -2,23 +2,23 @@
 // See LICENSE file in the project root for full license information.
 
 import * as vscode from 'vscode';
-import { Tickers, ProviderKeys } from './ticker';
+import { Tickers } from './ticker';
 import { KeyValidator } from './keyValidator';
-
-// the providers that can be configured
-const SUPPORTED_PROVIDERS = ['Binance', 'OKX'] as const;
-
-// the market types a provider supports
-const SUPPORTED_MARKETS: { [provider: string]: string[] } = {
-  Binance: ['spot', 'futures'],
-  OKX: ['spot', 'swap']
-};
+import { KlineChartView } from './chartView';
+import { ProviderKeys } from './providers';
+import { readChartConfig, readTickers, SUPPORTED_PROVIDERS } from './config';
 
 // the prefix of the keys stored in Secret Storage
 const SECRET_PREFIX = 'crypto-price-ticker';
 
 // the tickers array
 let tickers: Tickers | undefined;
+
+// the K-line chart view
+let chartView: KlineChartView | undefined;
+
+// the API keys most recently read from Secret Storage, shared with the chart
+let providerKeys: ProviderKeys | undefined;
 
 // the refresh interval
 let interval: NodeJS.Timeout | undefined;
@@ -39,12 +39,47 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   registerKeyCommands(context);
+  registerChart(context);
 
   // construct the extension
   await constructor(context);
 
   // call the constructor again if the configuration changes
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(() => constructor(context)));
+}
+
+// register the K-line chart view together with its command and status bar entry
+function registerChart(context: vscode.ExtensionContext) {
+  chartView = new KlineChartView(
+    () => readChartConfig(vscode.workspace.getConfiguration().get('crypto-price-ticker')),
+    () => providerKeys
+  );
+
+  // the provider is registered once and stays dormant until the tab is opened
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(KlineChartView.viewId, chartView, { webviewOptions: { retainContextWhenHidden: false } })
+  );
+
+  // the chart lives in its own tab in the bottom panel, next to the terminal
+  context.subscriptions.push(
+    vscode.commands.registerCommand('crypto-price-ticker.showChart', async () => {
+      await vscode.commands.executeCommand('workbench.view.extension.cryptoPanel');
+      await vscode.commands.executeCommand(`${KlineChartView.viewId}.focus`);
+    })
+  );
+
+  // a status bar entry that opens the chart, sitting leftmost of the ticker icons.
+  // the id is required so VS Code can restore the item if it was hidden from the status bar menu
+  const item = vscode.window.createStatusBarItem('crypto-price-ticker.chart', vscode.StatusBarAlignment.Left, 1000);
+  item.name = 'Crypto K-line Chart';
+  item.text = '$(graph-line)';
+  item.tooltip = 'Show the crypto K-line chart';
+  item.command = 'crypto-price-ticker.showChart';
+  item.show();
+  context.subscriptions.push(item);
+
+  // follow configuration changes without making the user close and reopen the tab
+  context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(() => chartView?.reload()));
 }
 
 // register the commands that manage the API keys in Secret Storage
@@ -143,29 +178,13 @@ async function constructor(context: vscode.ExtensionContext) {
 
     // get the ticker definition from the configuration
     const configuration: any = vscode.workspace.getConfiguration().get('crypto-price-ticker');
-    const tickerDefinitions: any[] = configuration.tickers;
+    const tickersConfig = readTickers(configuration);
 
-    const tickersConfig = tickerDefinitions.map((definition: any) => {
-      const provider = SUPPORTED_PROVIDERS.includes(definition.provider) ? definition.provider : 'Binance';
-
-      // a market the provider does not serve falls back to spot
-      const market = definition.market;
-      if (market && !SUPPORTED_MARKETS[provider].includes(market)) {
-        console.warn(`crypto-price-ticker: market "${market}" is not supported by ${provider}, falling back to spot`);
-      }
-
-      return {
-        symbol: definition.symbol || 'BTC',
-        currency: definition.currency || 'USDT',
-        exchange: definition.exchange,
-        template: definition.template || '{symbol}{market} {price}',
-        provider,
-        market: market && SUPPORTED_MARKETS[provider].includes(market) ? market : 'spot'
-      };
-    });
+    // the chart uses the same credentials
+    providerKeys = await readSecrets(context);
 
     // create a new ticker
-    tickers = new Tickers(tickersConfig, context.workspaceState, await readSecrets(context));
+    tickers = new Tickers(tickersConfig, context.workspaceState, providerKeys);
 
     // create the interval and call refresh every x seconds
     interval = setInterval(() => refresh(configuration), configuration.interval * 1000);
@@ -197,4 +216,7 @@ function refresh(configuration: any) {
 export function deactivate() {
   // dispose of the tickers
   tickers?.dispose();
+
+  // stop the chart polling
+  chartView?.dispose();
 }

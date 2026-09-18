@@ -6,5 +6,7 @@ tsconfig.json
 .eslintrc
 .eslintignore
 CLAUDE.md
+AGENTS.md
+.claude-handoff.md
 **/*.map
 **/*.ts
