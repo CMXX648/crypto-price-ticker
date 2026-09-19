@@ -1,6 +1,19 @@
-# Crypto Price Ticker for VS Code
+# Crypto Price Ticker Plus for VS Code
 
-Monitor real-time cryptocurrency prices in the Visual Studio Code status bar, and open a live K-line chart in the bottom panel — next to the terminal. Stay updated with Bitcoin, Ethereum, and any other supported pair from Binance and OKX while you code.
+Monitor live **public market prices** in the Visual Studio Code status bar, and open a candlestick chart in the bottom panel — next to the terminal. Data comes from Binance and OKX **read-only public market-data endpoints** (tickers and klines). Stay updated with BTC, ETH, and any other supported pair while you code.
+
+This is a fork of [Mavis2103/Crypto-Tricker](https://github.com/Mavis2103/Crypto-Tricker), with a K-line chart and other additions. Settings and commands keep the original `crypto-price-ticker.*` prefix so existing User settings still apply.
+
+## Privacy and data access
+
+This extension is a **price ticker**, not a wallet or trading client.
+
+- It only calls **public, read-only** market-data URLs (for example Binance `ticker/24hr` / `klines`, OKX `market/tickers` / `market/candles`).
+- It does **not** access wallets, balances, orders, deposits, withdrawals, or trading.
+- It never asks for a seed phrase, private key, or withdrawal-enabled credential.
+- No account is required. The extension works anonymously over public endpoints.
+- An optional exchange **rate-limit token** can be stored locally in VS Code Secret Storage (OS keychain) to raise public-endpoint quotas. Create that token on the exchange with **read-only / market-data** permissions only — never enable trade or withdraw.
+- Tokens are not written to `settings.json` and are not sent anywhere except the matching exchange's public market-data API.
 
 ## Key Features
 
@@ -11,17 +24,17 @@ Monitor real-time cryptocurrency prices in the Visual Studio Code status bar, an
 - **Customizable Tickers**: Choose coins, quote currencies, providers, markets, colors, and display templates.
 - **Track Multiple Coins**: Add as many tickers as you want.
 - **Auto Refresh**: Set your own refresh interval or update only when VS Code is focused.
-- **Secret Storage API Keys**: Optional keys raise rate limits without writing credentials into `settings.json`.
+- **Optional rate-limit token**: Stored in VS Code Secret Storage. Raises public API quotas only; the extension works without one.
 - **Lightweight & Fast**: The chart polls only while its tab is visible; an unused chart costs nothing.
 
 ## Installation
 
 1. Open Visual Studio Code.
 2. Go to the Extensions view (`Ctrl+Shift+X`).
-3. Search for `crypto-price-ticker` and install it.
+3. Search for `Crypto Price Ticker Plus` and install it.
 4. Or install directly from [Visual Studio Marketplace][marketplace].
 
-[marketplace]: https://marketplace.visualstudio.com/items?itemName=Mavis2103.crypto-price-ticker
+[marketplace]: https://marketplace.visualstudio.com/items?itemName=cmxx648.crypto-price-ticker-plus
 
 ## How to Use
 
@@ -113,15 +126,16 @@ Use **' Ctrl+, '** to Edit your VS Code `settings.json` to customize the extensi
 
 > **Keep your settings out of git.** The `crypto-price-ticker.tickers` setting is scoped to **User settings** on purpose — VS Code will refuse to write it into a workspace `.vscode/settings.json`, so it can never be committed to a repository. Open it with `Ctrl+Shift+P` → `Preferences: Open User Settings (JSON)`.
 
-### API Keys (Secret Storage)
+### Optional rate-limit token (public market data only)
 
-API keys are stored in VS Code's **Secret Storage** (encrypted with your OS keychain), never in settings files:
+The ticker and chart work **without any credentials**. If you hit exchange rate limits, you may store an optional token in VS Code **Secret Storage** (OS keychain) — never in settings files:
 
-1. Run `Ctrl+Shift+P` → **Set API Keys**.
-2. Pick the provider, then paste your API key and secret key. Both inputs are masked.
-3. Keys take effect immediately. Run **Clear API Keys** to remove them.
+1. On Binance/OKX, create a key with **read-only market-data** permissions. Do not enable trade or withdraw.
+2. Run `Ctrl+Shift+P` → **Set Optional Rate-Limit Token (public market data only)**.
+3. Pick the provider, then paste the token. Inputs are masked.
+4. Run **Clear Optional Rate-Limit Token** to remove it.
 
-Keys are optional on both providers — they only raise rate limits, for the status bar and the K-line chart alike. If you previously stored keys under `crypto-price-ticker.providers`, they still work as a fallback, but a warning will nudge you toward Secret Storage.
+The token is sent only to that exchange's public market-data endpoints, to raise the same read-only quota the anonymous IP already uses. If you previously stored values under `crypto-price-ticker.providers` in settings, they still work as a fallback, but a warning will nudge you toward Secret Storage.
 
 ### Market Types
 
@@ -183,23 +197,25 @@ The default template is `{symbol}{market} {price}`, which renders as `BTCⓈ 670
 "crypto-price-ticker.chartScale": 50
 ```
 
-API keys are **not** set here — use the **Set API Keys** command described above.
+Rate-limit tokens are **not** set here — they are optional, and if you use one, store it with the command above (Secret Storage), not in `settings.json`.
 
-## Supported Crypto Data Providers
+## Supported market-data providers
+
+Public ticker and kline endpoints only:
 
 - **Binance** — [binance.com](https://binance.com)
 - **OKX** — [okx.com](https://okx.com)
 
-## API Rate Limits
+## Public API rate limits
 
-> **Important:** Both Binance and OKX enforce API rate limits. Setting a very low refresh interval or tracking too many tickers may result in temporary bans or incomplete data.
+> **Important:** Both Binance and OKX enforce rate limits on their **public market-data** endpoints. A very low refresh interval or too many tickers may result in temporary throttling or incomplete data.
 >
 > - **Binance**: [API rate limits](https://binance-docs.github.io/apidocs/spot/en/#limits) apply per IP and endpoint.
 > - **OKX**: [API rate limits](https://www.okx.com/docs-v5/en/#rest-api-rate-limit) also apply per IP and endpoint.
 >
-> **Recommendation:** Use a refresh interval of 60 seconds or higher and limit the number of tracked tickers for best results. The K-line chart has its own cadence (`chartRefreshSeconds`, default 15s) and stops polling when hidden. Providing API keys (optional) can help increase your rate limits and access more data.
+> **Recommendation:** Use a refresh interval of 60 seconds or higher and limit the number of tracked tickers. The chart has its own cadence (`chartRefreshSeconds`, default 15s) and stops polling when hidden. An optional read-only rate-limit token can raise the public quota; it is never required.
 
-## Why Use Crypto Price Ticker for VS Code?
+## Why Use Crypto Price Ticker Plus for VS Code?
 
 - Instantly see crypto prices without leaving your coding environment.
 - Open a live candlestick chart in the same panel as the terminal.
@@ -210,6 +226,8 @@ API keys are **not** set here — use the **Set API Keys** command described abo
 
 [MIT](LICENSE.md)
 
+Original work Copyright (c) Mavis / Mavis2103. Modifications Copyright (c) cmxx648.
+
 ---
 
-**Crypto Price Ticker for VS Code** — The best way to keep track of cryptocurrency prices while coding!
+**Crypto Price Ticker Plus for VS Code** — Keep track of cryptocurrency prices while coding.

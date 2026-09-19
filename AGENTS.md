@@ -62,6 +62,6 @@ To run the extension: press `F5` in VS Code (launch config `Run Extension`), whi
 
 ## Conventions
 
-- Every `src/*.ts` file starts with the MIT copyright header: `// Copyright (c) Mavis2103. Licensed under the MIT license.` followed by `// See LICENSE file in the project root for full license information.`
+- Every `src/*.ts` file starts with the MIT copyright header. Keep the original `// Copyright (c) Mavis2103. Licensed under the MIT license.` line and add `// Copyright (c) cmxx648. Licensed under the MIT license.` for this fork, followed by `// See LICENSE file in the project root for full license information.`
 - TypeScript is in `strict` mode, target `es6`, `module: commonjs`, `rootDir: src`, `outDir: out`. Only `src/` is compiled; `.vscodeignore` strips `.ts`/`.map` files from the packaged `.vsix`.
 - HTTP is done with `got` v11 (imported as a default import, CommonJS).

@@ -8,5 +8,9 @@ tsconfig.json
 CLAUDE.md
 AGENTS.md
 .claude-handoff.md
+bun.lock
+*.vsix
+images/icon.jpg
+.tmp-pilvenv/**
 **/*.map
 **/*.ts

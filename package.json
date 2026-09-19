@@ -1,19 +1,28 @@
 {
-    "name": "crypto-price-ticker",
-    "displayName": "Crypto Price Ticker",
-    "description": "Keep an eye on cryptocurrency prices as you code!",
+    "name": "crypto-price-ticker-plus",
+    "displayName": "Crypto Price Ticker Plus",
+    "description": "Live public market prices and a candlestick chart in the VS Code status bar and panel. Read-only Binance/OKX market-data endpoints only — no wallet, trading, or withdrawal access.",
     "keywords": [
-        "bitcoin",
-        "ethereum",
+        "ticker",
+        "status-bar",
+        "candlestick",
+        "market-data",
         "price",
-        "crypto"
+        "kline",
+        "binance",
+        "okx"
     ],
-    "version": "1.4.0",
-    "publisher": "Mavis2103",
+    "version": "1.0.0",
+    "publisher": "cmxx648",
+    "author": "cmxx648",
     "repository": {
         "type": "git",
-        "url": "https://github.com/Mavis2103/Crypto-Tricker"
+        "url": "https://github.com/CMXX648/crypto-price-ticker"
     },
+    "bugs": {
+        "url": "https://github.com/CMXX648/crypto-price-ticker/issues"
+    },
+    "homepage": "https://github.com/CMXX648/crypto-price-ticker#readme",
     "license": "MIT",
     "icon": "images/icon.png",
     "engines": {
@@ -40,12 +49,12 @@
             },
             {
                 "command": "crypto-price-ticker.setApiKeys",
-                "title": "Set API Keys",
+                "title": "Set Optional Rate-Limit Token (public market data only)",
                 "icon": "$(key)"
             },
             {
                 "command": "crypto-price-ticker.clearApiKeys",
-                "title": "Clear API Keys",
+                "title": "Clear Optional Rate-Limit Token",
                 "icon": "$(trash)"
             },
             {
@@ -163,63 +172,6 @@
                             }
                         ],
                         "description": "The array of ticker definitions to display in the status bar."
-                    },
-                    "crypto-price-ticker.providers": {
-                        "type": "object",
-                        "scope": "application",
-                        "properties": {
-                            "binance": {
-                                "type": "object",
-                                "properties": {
-                                    "apiKey": {
-                                        "type": "string",
-                                        "default": "",
-                                        "description": "API key for Binance provider."
-                                    },
-                                    "secretKey": {
-                                        "type": "string",
-                                        "default": "",
-                                        "description": "Secret key for Binance provider."
-                                    }
-                                },
-                                "default": {
-                                    "apiKey": "",
-                                    "secretKey": ""
-                                },
-                                "description": "Configuration for Binance provider."
-                            },
-                            "okx": {
-                                "type": "object",
-                                "properties": {
-                                    "apiKey": {
-                                        "type": "string",
-                                        "default": "",
-                                        "description": "API key for OKX provider."
-                                    },
-                                    "secretKey": {
-                                        "type": "string",
-                                        "default": "",
-                                        "description": "Secret key for OKX provider."
-                                    }
-                                },
-                                "default": {
-                                    "apiKey": "",
-                                    "secretKey": ""
-                                },
-                                "description": "Configuration for OKX provider."
-                            }
-                        },
-                        "default": {
-                            "binance": {
-                                "apiKey": "",
-                                "secretKey": ""
-                            },
-                            "okx": {
-                                "apiKey": "",
-                                "secretKey": ""
-                            }
-                        },
-                        "description": "Deprecated: use the 'Set API Keys' command instead. Keys stored here are visible in settings files and may be committed to version control."
                     }
                 }
             },
@@ -282,11 +234,11 @@
         "@types/vscode": "^1.85.0",
         "@typescript-eslint/eslint-plugin": "^5.12.0",
         "@typescript-eslint/parser": "^5.12.0",
+        "@vscode/vsce": "^3.2.0",
         "typescript": "^4.5.5",
         "eslint": "^8.9.0"
     },
     "dependencies": {
-        "got": "^11.8.3",
-        "vsce": "^2.15.0"
+        "got": "^11.8.3"
     }
 }
