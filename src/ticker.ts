@@ -79,6 +79,13 @@ export class Tickers {
     this.toggleItem.command = 'crypto-price-ticker.toggle';
     this.updateToggleItem();
 
+    // id-based items are restored as visible across extension-host restarts
+    // and reinstalls; the folded state must win immediately, the same way
+    // toggle() hides synchronously on collapse
+    if (this.collapsed) {
+      Object.values(this.items).forEach(item => item.hide());
+    }
+
     this.getAllTokens();
     // Increase interval to reduce rate limiting (90 seconds instead of 60).
     // the handle is kept so dispose() can stop it — extension.ts rebuilds the tickers
