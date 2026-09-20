@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.0.1
+
+### Fixed
+
+- Folded ticker prices no longer reappear on the status bar after an extension-host restart, reload, or reinstall. Id-based status bar items were restored as visible by VS Code; they are now hidden immediately when the ticker is collapsed.
+
 ## 1.0.0
 
 First Marketplace release of **Crypto Price Ticker Plus** (`cmxx648.crypto-price-ticker-plus`), a fork of [Mavis2103/Crypto-Tricker](https://github.com/Mavis2103/Crypto-Tricker).
