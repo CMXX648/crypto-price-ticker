@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- Folded ticker prices no longer reappear on the status bar after an extension-host restart, reload, or reinstall. Id-based status bar items were restored as visible by VS Code; they are now hidden immediately when the ticker is collapsed.
+- Folded ticker prices no longer reappear on the status bar after an extension-host restart, reload, reinstall, or starting Run and Debug in another project. Unrelated configuration events were rebuilding the whole ticker set, and VS Code restored id-based price items as visible; they are now created without a stable id and hidden immediately when collapsed.
 
 ## 1.0.0
 

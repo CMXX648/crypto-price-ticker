@@ -64,10 +64,12 @@ export class Tickers {
     });
 
     // create status bar items — key by provider/market/symbol/currency so
-    // BTC spot and BTC futures do not share (and leak) a single item
+    // BTC spot and BTC futures do not share (and leak) a single item.
+    // no stable vscode id: VS Code restores id-based items as visible across
+    // debug sessions, reloads, and status-bar reflows, which fights the fold
     this.tickers.forEach((ticker, priority) => {
       const key = this.itemKey(ticker);
-      const item = vscode.window.createStatusBarItem(`crypto-price-ticker.price.${key}`, vscode.StatusBarAlignment.Left, priority);
+      const item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, priority);
       item.name = `Crypto ${ticker.symbol}`;
       this.items[key] = item;
     });

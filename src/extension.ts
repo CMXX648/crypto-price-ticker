@@ -45,8 +45,18 @@ export async function activate(context: vscode.ExtensionContext) {
   // construct the extension
   await constructor(context);
 
-  // call the constructor again if the configuration changes
-  context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(() => constructor(context)));
+  // rebuild only when this extension's settings change. starting Run and Debug
+  // in another project fires unrelated configuration events (launch, debugger
+  // adapters) which used to reconstruct the tickers and leak folded prices
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(e => {
+      if (!e.affectsConfiguration('crypto-price-ticker')) {
+        return;
+      }
+      constructor(context);
+      chartView?.reload();
+    })
+  );
 }
 
 // register the K-line chart view together with its command and status bar entry
@@ -78,9 +88,6 @@ function registerChart(context: vscode.ExtensionContext) {
   item.command = 'crypto-price-ticker.showChart';
   item.show();
   context.subscriptions.push(item);
-
-  // follow configuration changes without making the user close and reopen the tab
-  context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(() => chartView?.reload()));
 }
 
 // register the commands that manage the API keys in Secret Storage
